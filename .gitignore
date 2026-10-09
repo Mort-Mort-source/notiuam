@@ -28,3 +28,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Firebase credentials
+**/service-account.json
+**/google-services.json
+**/*firebase-adminsdk*.json
+!**/*.example
