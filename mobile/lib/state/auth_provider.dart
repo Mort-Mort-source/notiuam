@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../core/api_client.dart';
+import '../core/fcm_service.dart';
 import '../core/token_storage.dart';
 import '../models/auth_response.dart';
 import '../models/user.dart';
@@ -10,11 +11,12 @@ enum AuthStatus { unknown, authenticated, unauthenticated }
 class AuthProvider extends ChangeNotifier {
   final ApiClient _api;
   final TokenStorage _storage;
+  final FcmService _fcm;
 
   AuthStatus _status = AuthStatus.unknown;
   User? _user;
 
-  AuthProvider(this._api, this._storage);
+  AuthProvider(this._api, this._storage, this._fcm);
 
   AuthStatus get status => _status;
   User? get user => _user;
@@ -32,10 +34,8 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
 
-    // Intentar reconstruir el User desde el payload del JWT.
     final decoded = _decodeJwt(token);
     if (decoded == null) {
-      // Token corrupto: forzar logout.
       await _storage.clear();
       _status = AuthStatus.unauthenticated;
       notifyListeners();
@@ -50,6 +50,8 @@ class AuthProvider extends ChangeNotifier {
     );
     _status = AuthStatus.authenticated;
     notifyListeners();
+
+    await _fcm.initialize();
   }
 
   Future<void> login(String email, String password) async {
@@ -71,6 +73,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _fcm.unregister();
     await _storage.clear();
     _user = null;
     _status = AuthStatus.unauthenticated;
@@ -83,17 +86,15 @@ class AuthProvider extends ChangeNotifier {
     _user = auth.user;
     _status = AuthStatus.authenticated;
     notifyListeners();
+
+    await _fcm.initialize();
   }
 
-  /// Decodifica el payload de un JWT sin verificar la firma.
-  /// Solo para leer claims en el cliente (el backend ya los validó).
   Map<String, dynamic>? _decodeJwt(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
-      final payload = parts[1];
-      // Normalizar base64url → base64
-      final normalized = base64Url.normalize(payload);
+      final normalized = base64Url.normalize(parts[1]);
       final decoded = utf8.decode(base64Url.decode(normalized));
       return jsonDecode(decoded) as Map<String, dynamic>;
     } catch (_) {
