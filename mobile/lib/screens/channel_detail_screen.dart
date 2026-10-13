@@ -169,8 +169,10 @@ class _ChannelDetailScreenState extends State<ChannelDetailScreen> {
     final loadingPosts = context.watch<PostProvider>().isLoading(widget.channelId);
 
     // ¿Puedo moderar cualquier post? Sí, si soy dueño del canal o admin/superadmin
-    final canModerateAny = me != null &&
-        (ch.ownerId == me.id || me.isAdminOrSuper);
+    final canModerateAny = me != null && (
+    me.isSuperAdmin || 
+    (me.isProfessor && ch.ownerId == me.id)
+    );
 
     return Column(
       children: [

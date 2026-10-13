@@ -119,31 +119,31 @@ public void delete(UUID postId) {
     UUID channelOwnerId = p.getChannel().getOwner().getId();
 
     boolean isAuthor = authorId.equals(myId);
-    boolean isChannelOwner = channelOwnerId.equals(myId);
-    boolean isAdmin = myRole == Role.ADMIN || myRole == Role.SUPERADMIN;
+    boolean isSuperAdmin = myRole == Role.SUPERADMIN;
+    boolean isChannelOwnerProfessor = myRole == Role.PROFESSOR 
+            && channelOwnerId.equals(myId);
 
-    // El dueño del canal (aunque sea PROFESSOR) puede moderar sin votación
-    if (!isAuthor && !isChannelOwner && !isAdmin) {
+    // Reglas:
+    // - El autor siempre puede borrar su propio post
+    // - SUPERADMIN puede borrar cualquier post
+    // - PROFESSOR puede borrar posts en canales que él creó
+    // - ADMIN solo puede borrar sus propios posts (NO los ajenos)
+    if (!isAuthor && !isSuperAdmin && !isChannelOwnerProfessor) {
         throw new ForbiddenException(
-                "Solo el autor, el dueño del canal o un moderador pueden eliminar esta publicación");
+            "No tienes permiso para eliminar esta publicación");
     }
 
-    // Auditoría: registrar cuando no lo borra el propio autor
+    // Auditoría
     if (!isAuthor) {
         User admin = userRepository.findById(myId).orElseThrow();
         String reason;
-        if (isChannelOwner) {
-            reason = "Moderación del dueño del canal";
+        if (isSuperAdmin) {
+            reason = "Moderación de superadministrador";
         } else {
-            reason = "Moderación administrativa";
+            reason = "Moderación del dueño del canal";
         }
-        adminLog.log(
-                admin,
-                "DELETE_POST",
-                ReportTargetType.POST,
-                postId,
-                reason + ": " + p.getChannel().getName()
-        );
+        adminLog.log(admin, "DELETE_POST", ReportTargetType.POST,
+                postId, reason + ": " + p.getChannel().getName());
     }
 
     postRepository.delete(p);

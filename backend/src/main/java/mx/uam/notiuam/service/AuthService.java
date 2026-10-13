@@ -37,38 +37,45 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest req) {
-        if (userRepository.existsByEmail(req.email().toLowerCase())) {
-            throw new IllegalArgumentException("El correo ya está registrado");
-        }
+public AuthResponse register(RegisterRequest req) {
+    String email = req.email().toLowerCase().trim();
 
-        User user = User.builder()
-                .email(req.email().toLowerCase())
-                .passwordHash(passwordEncoder.encode(req.password()))
-                .displayName(req.displayName())
-                .role(req.role() != null ? req.role() : Role.STUDENT)
-                .enabled(true)
-                .build();
-
-        user = userRepository.save(user);
-        return buildAuthResponse(user);
+    if (!email.endsWith("@cua.uam.mx")) {
+        throw new IllegalArgumentException(
+                "Solo se permiten correos institucionales @cua.uam.mx");
     }
 
-    public AuthResponse login(LoginRequest req) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            req.email().toLowerCase(),
-                            req.password()));
-        } catch (AuthenticationException e) {
-            throw new IllegalArgumentException("Credenciales inválidas");
-        }
-
-        User user = userRepository.findByEmail(req.email().toLowerCase())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
-
-        return buildAuthResponse(user);
+    if (userRepository.existsByEmail(email)) {
+        throw new IllegalArgumentException("El correo ya esta registrado");
     }
+
+    User user = User.builder()
+            .email(email)
+            .passwordHash(passwordEncoder.encode(req.password()))
+            .displayName(req.displayName())
+            .role(req.role() != null ? req.role() : Role.STUDENT)
+            .enabled(true)
+            .build();
+
+    user = userRepository.save(user);
+    return buildAuthResponse(user);
+} 
+
+public AuthResponse login(LoginRequest req) {
+    try {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        req.email().toLowerCase(),
+                        req.password()));
+    } catch (AuthenticationException e) {
+        throw new IllegalArgumentException("Credenciales invalidas");
+    }
+
+    User user = userRepository.findByEmail(req.email().toLowerCase())
+            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+    return buildAuthResponse(user);
+}
 
     public AuthResponse refresh(String refreshToken) {
         Claims claims;

@@ -2,12 +2,23 @@ package mx.uam.notiuam.dto.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import mx.uam.notiuam.domain.Role;
 
 public record RegisterRequest(
-        @Email @NotBlank String email,
-        @NotBlank @Size(min = 8, max = 100) String password,
-        @NotBlank @Size(max = 120) String displayName,
-        Role role   // opcional; si es null, se asigna STUDENT
+        @Email @NotBlank
+        @Pattern(
+                regexp = "^[a-zA-Z0-9._%+-]+@cua\\.uam\\.mx$",
+                message = "El correo debe ser institucional (@cua.uam.mx)"
+        )
+        String email,
+
+        @NotBlank @Size(min = 8, max = 100)
+        String password,
+
+        @NotBlank @Size(max = 120)
+        String displayName,
+
+        Role role
 ) {}
