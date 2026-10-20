@@ -51,6 +51,12 @@ public class User {
     @Builder.Default
     private boolean enabled = true;
 
+    // --- NUEVO CAMPO ---
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+    // -------------------
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

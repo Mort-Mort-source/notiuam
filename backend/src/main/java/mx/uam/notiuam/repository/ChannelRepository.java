@@ -13,4 +13,6 @@ public interface ChannelRepository extends JpaRepository<Channel, UUID> {
     List<Channel> findByCategoryAndPublicChannelTrue(ChannelCategory category);
     List<Channel> findByNameContainingIgnoreCaseAndPublicChannelTrue(String q);
     List<Channel> findByOwnerId(UUID ownerId);
+    List<Channel> findByCategoryAndNameContainingIgnoreCaseAndPublicChannelTrue(
+        ChannelCategory category, String q);
 }

@@ -37,18 +37,25 @@ public class ChannelService {
         this.currentUser = currentUser;
     }
 
-    @Transactional(readOnly = true)
-    public List<ChannelSummaryResponse> listPublic(ChannelCategory category, String q) {
-        List<Channel> channels;
-        if (category != null) {
-            channels = channelRepository.findByCategoryAndPublicChannelTrue(category);
-        } else if (q != null && !q.isBlank()) {
-            channels = channelRepository.findByNameContainingIgnoreCaseAndPublicChannelTrue(q);
-        } else {
-            channels = channelRepository.findByPublicChannelTrueOrderByCreatedAtDesc();
-        }
-        return channels.stream().map(this::toSummary).toList();
+@Transactional(readOnly = true)
+public List<ChannelSummaryResponse> listPublic(ChannelCategory category, String q) {
+    List<Channel> channels;
+    boolean hasQuery = q != null && !q.isBlank();
+    boolean hasCategory = category != null;
+
+    if (hasCategory && hasQuery) {
+        // Filtra por los dos criterios a la vez
+        channels = channelRepository
+                .findByCategoryAndNameContainingIgnoreCaseAndPublicChannelTrue(category, q);
+    } else if (hasCategory) {
+        channels = channelRepository.findByCategoryAndPublicChannelTrue(category);
+    } else if (hasQuery) {
+        channels = channelRepository.findByNameContainingIgnoreCaseAndPublicChannelTrue(q);
+    } else {
+        channels = channelRepository.findByPublicChannelTrueOrderByCreatedAtDesc();
     }
+    return channels.stream().map(this::toSummary).toList();
+}
 
     @Transactional(readOnly = true)
     public ChannelResponse get(UUID id) {

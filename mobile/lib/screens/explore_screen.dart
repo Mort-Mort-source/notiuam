@@ -15,12 +15,23 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   final _searchCtrl = TextEditingController();
+  String? _selectedCategory;
+
+  // Lista de categorias disponibles
+  static const _categories = [
+    ('ALL', 'Todas'),
+    ('ACADEMIC', 'Académico'),
+    ('CULTURAL', 'Cultural'),
+    ('SPORTS', 'Deportes'),
+    ('ADMINISTRATIVE', 'Administrativo'),
+    ('SOCIAL', 'Social'),
+  ];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChannelProvider>().loadPublic();
+      _reload();
     });
   }
 
@@ -30,6 +41,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
     super.dispose();
   }
 
+  /// Funcion central para recargar con texto y categoria
+  void _reload() {
+    context.read<ChannelProvider>().loadPublic(
+          query: _searchCtrl.text.trim(),
+          category: _selectedCategory,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChannelProvider>();
@@ -37,6 +56,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return Scaffold(
       body: Column(
         children: [
+          // Barra de busqueda
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
@@ -48,15 +68,41 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchCtrl.clear();
-                    context.read<ChannelProvider>().loadPublic();
+                    _reload();
                   },
                 ),
               ),
-              onSubmitted: (value) {
-                context.read<ChannelProvider>().loadPublic(query: value.trim());
-              },
+              onSubmitted: (value) => _reload(),
             ),
           ),
+          
+          // Filtros por categoria (Chips)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: _categories.map((cat) {
+                final isSelected = (_selectedCategory == null && cat.$1 == 'ALL') ||
+                    _selectedCategory == cat.$1;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(cat.$2),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedCategory = cat.$1 == 'ALL' ? null : cat.$1;
+                      });
+                      _reload();
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
           if (provider.loading) const LinearProgressIndicator(),
           if (provider.error != null)
             Padding(
@@ -64,16 +110,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
               child: Text(provider.error!,
                   style: const TextStyle(color: NotiuamColors.danger)),
             ),
+            
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => context.read<ChannelProvider>().loadPublic(
-                    query: _searchCtrl.text.trim(),
-                  ),
+              onRefresh: () async => _reload(),
               child: provider.publicChannels.isEmpty && !provider.loading
                   ? ListView(
                       children: const [
                         SizedBox(height: 80),
-                        Center(child: Text('No hay canales públicos')),
+                        Center(child: Text('No hay canales que coincidan')),
                       ],
                     )
                   : ListView.separated(

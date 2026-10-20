@@ -25,57 +25,101 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailService emailService;
+    private final GoogleAuthService googleAuthService; // <-- Campo añadido
 
+    // Constructor con TODAS las dependencias inyectadas
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       EmailService emailService,
+                       GoogleAuthService googleAuthService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.emailService = emailService;
+        this.googleAuthService = googleAuthService; // <-- Asignación añadida
     }
 
     @Transactional
-public AuthResponse register(RegisterRequest req) {
-    String email = req.email().toLowerCase().trim();
+    public AuthResponse register(RegisterRequest req) {
+        String email = req.email().toLowerCase().trim();
 
-    if (!email.endsWith("@cua.uam.mx")) {
-        throw new IllegalArgumentException(
-                "Solo se permiten correos institucionales @cua.uam.mx");
+        if (!email.endsWith("@cua.uam.mx")) {
+            throw new IllegalArgumentException(
+                    "Solo se permiten correos institucionales @cua.uam.mx");
+        }
+
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("El correo ya esta registrado");
+        }
+
+        // Exigir verificacion de correo
+        if (!emailService.isVerified(email)) {
+            throw new IllegalArgumentException(
+                    "Debes verificar tu correo antes de registrarte");
+        }
+        emailService.consumeVerification(email);
+
+        User user = User.builder()
+                .email(email)
+                .passwordHash(passwordEncoder.encode(req.password()))
+                .displayName(req.displayName())
+                .role(req.role() != null ? req.role() : Role.STUDENT)
+                .emailVerified(true)
+                .enabled(true)
+                .build();
+
+        user = userRepository.save(user);
+        return buildAuthResponse(user);
     }
 
-    if (userRepository.existsByEmail(email)) {
-        throw new IllegalArgumentException("El correo ya esta registrado");
+    public AuthResponse login(LoginRequest req) {
+        String email = req.email().toLowerCase().trim();
+
+        if (!email.endsWith("@cua.uam.mx")) {
+            throw new IllegalArgumentException("Credenciales invalidas");
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            email,
+                            req.password()));
+        } catch (AuthenticationException e) {
+            throw new IllegalArgumentException("Credenciales invalidas");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+        return buildAuthResponse(user);
     }
 
-    User user = User.builder()
-            .email(email)
-            .passwordHash(passwordEncoder.encode(req.password()))
-            .displayName(req.displayName())
-            .role(req.role() != null ? req.role() : Role.STUDENT)
-            .enabled(true)
-            .build();
+    public AuthResponse loginWithGoogle(String idTokenString) {
+        var payload = googleAuthService.verify(idTokenString);
+        String email = payload.getEmail().toLowerCase().trim();
 
-    user = userRepository.save(user);
-    return buildAuthResponse(user);
-} 
+        if (!email.endsWith("@cua.uam.mx")) {
+            throw new IllegalArgumentException("Solo se permiten correos @cua.uam.mx");
+        }
 
-public AuthResponse login(LoginRequest req) {
-    try {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        req.email().toLowerCase(),
-                        req.password()));
-    } catch (AuthenticationException e) {
-        throw new IllegalArgumentException("Credenciales invalidas");
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            User nuevo = User.builder()
+                    .email(email)
+                    .displayName(payload.get("name") != null ? payload.get("name").toString() : email)
+                    .passwordHash("")
+                    .role(Role.STUDENT)
+                    .emailVerified(true)
+                    .enabled(true)
+                    .build();
+            return userRepository.save(nuevo);
+        });
+
+        return buildAuthResponse(user);
     }
-
-    User user = userRepository.findByEmail(req.email().toLowerCase())
-            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
-
-    return buildAuthResponse(user);
-}
 
     public AuthResponse refresh(String refreshToken) {
         Claims claims;

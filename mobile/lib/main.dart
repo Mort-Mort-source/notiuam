@@ -16,6 +16,7 @@ import 'state/channel_provider.dart';
 import 'state/post_provider.dart';
 import 'state/report_provider.dart';
 import 'state/unread_provider.dart';
+import 'state/verification_provider.dart'; // <-- NUEVO IMPORT
 import 'screens/channel_detail_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -82,6 +83,11 @@ class NotiuamApp extends StatelessWidget {
         ChangeNotifierProxyProvider<ApiClient, ReportProvider>(
           create: (context) => ReportProvider(context.read<ApiClient>()),
           update: (_, api, previous) => previous ?? ReportProvider(api),
+        ),
+        // --- PROVIDER FALTANTE ---
+        ChangeNotifierProxyProvider<ApiClient, VerificationProvider>(
+          create: (context) => VerificationProvider(context.read<ApiClient>()),
+          update: (_, api, previous) => previous ?? VerificationProvider(api),
         ),
       ],
       child: MaterialApp(

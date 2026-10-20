@@ -1,6 +1,8 @@
 spring:
   application:
     name: notiuam-backend
+  profiles:
+    active: dev
 
   datasource:
     url: jdbc:postgresql://localhost:5432/notiuam
@@ -16,7 +18,6 @@ spring:
       ddl-auto: validate          # Flyway maneja el esquema
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         jdbc:
           time_zone: UTC
@@ -52,6 +53,18 @@ spring:
     listener:
       ack-mode: record
 
+  # --- Configuracion de correo ---
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_FROM_EMAIL}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.auth.mechanisms: XOAUTH2
+      mail.smtp.sasl.enable: true
+      mail.smtp.sasl.mechanisms: XOAUTH2
+
 server:
   port: 8081
   error:
@@ -59,8 +72,16 @@ server:
 
 jwt:
   secret: ${JWT_SECRET:change_me_in_prod_please_use_a_very_long_random_secret_at_least_256_bits}
-  expiration-ms: 3600000          # 1 hora
-  refresh-expiration-ms: 604800000 # 7 días
+  expiration-ms: 3600000
+  refresh-expiration-ms: 604800000
+
+# --- Configuracion personalizada de NotiUAM ---
+notiuam:
+  email:
+    enabled: true
+    from: ${GMAIL_FROM_EMAIL}
+    code-ttl-minutes: 10
+    verified-ttl-minutes: 15
 
 logging:
   level:

@@ -4,6 +4,7 @@ import '../core/api_client.dart';
 import '../core/theme.dart';
 import '../state/auth_provider.dart';
 import 'register_screen.dart';
+import '../core/google_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,6 +25,23 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       await context.read<AuthProvider>().login(_emailCtrl.text.trim(), _passCtrl.text);
+    } catch (e) {
+      setState(() => _error = ApiClient.extractError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final idToken = await GoogleAuthService.signInAndGetIdToken();
+      if (idToken == null) {
+        // El usuario cerró la ventana de Google sin elegir cuenta
+        setState(() => _loading = false);
+        return;
+      }
+      await context.read<AuthProvider>().loginWithGoogle(idToken);
     } catch (e) {
       setState(() => _error = ApiClient.extractError(e));
     } finally {
@@ -136,7 +154,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
+                    
                     const SizedBox(height: 24),
+                    
+                    // Botón de Iniciar Sesión
                     SizedBox(
                       height: 50,
                       child: FilledButton(
@@ -149,7 +170,52 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text('Iniciar sesión'),
                       ),
                     ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Separador visual
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('o', style: TextStyle(color: Colors.grey.shade500)),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Botón de Google
+                    OutlinedButton(
+                      onPressed: _loading ? null : _signInWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        backgroundColor: Colors.white,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Icono de Google (puedes cambiarlo por una imagen si prefieres)
+                          const Icon(Icons.g_mobiledata, size: 32, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Iniciar sesión con Google',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 12),
+                    
                     TextButton(
                       onPressed: _loading
                           ? null

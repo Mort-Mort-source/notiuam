@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../core/api_client.dart';
 import '../core/theme.dart';
 import '../state/auth_provider.dart';
+import '../state/verification_provider.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,25 +21,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _loading = false;
   String? _error;
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await context.read<AuthProvider>().register(
-            _emailCtrl.text.trim(),
-            _passCtrl.text,
-            _nameCtrl.text.trim(),
-          );
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      setState(() => _error = ApiClient.extractError(e));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+Future<void> _submit() async {
+  if (!_formKey.currentState!.validate()) return;
+
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
+
+  final email = _emailCtrl.text.trim().toLowerCase();
+  
+  // 1. Enviar el codigo al correo
+  final ok = await context.read<VerificationProvider>().sendCode(email);
+
+  setState(() => _loading = false);
+
+  if (!ok) {
+    setState(() => _error = context.read<VerificationProvider>().error ?? 'Error al enviar codigo');
+    return;
   }
+
+  // 2. Navegar a la pantalla de verificación
+  if (!mounted) return;
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => VerifyEmailScreen(
+      email: email,
+      password: _passCtrl.text,
+      displayName: _nameCtrl.text.trim(),
+    ),
+  ));
+}
 
   @override
   Widget build(BuildContext context) {

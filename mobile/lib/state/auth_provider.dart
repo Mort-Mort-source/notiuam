@@ -101,4 +101,10 @@ class AuthProvider extends ChangeNotifier {
       return null;
     }
   }
+  Future<void> loginWithGoogle(String idToken) async {
+  final res = await _api.dio.post('/api/auth/google', data: {
+    'idToken': idToken,
+  });
+  await _handleAuthResponse(res.data);
+}
 }
